@@ -8,11 +8,18 @@ import { resolveDeployedUrl } from "./deployed-target"
  * and needs real credentials, so instead these assert the things that are
  * checkable without a session and that actually broke in practice:
  *
- *   - the approuter starts a valid OAuth flow (this is the bug that produced
- *     "the request for authorization was invalid" - XSUAA rejected the
- *     redirect_uri because xs-security.json had no oauth2-configuration)
+ *   - the approuter starts a well-formed OAuth flow that XSUAA accepts
  *   - the agent endpoint is not reachable without a session
  *   - no ticket data leaks to an anonymous caller
+ *
+ * What they deliberately do NOT claim to check is whether the approuter's
+ * redirect_uri is whitelisted. XSUAA validates redirect_uri only AFTER
+ * authenticating the user, so it answers an anonymous authorize request with
+ * the same 302 whether the URI is registered or not - verified by sending a
+ * deliberately bogus one. An earlier version of this file asserted that 302 as
+ * a regression guard for exactly that bug, which made the test vacuous. Use
+ * `npm run verify:deploy` (config was accepted) and the authenticated suite
+ * (login completes end to end) instead.
  *
  * Enable by pointing at your deployment:
  *
@@ -53,14 +60,13 @@ test.describe("deployed", () => {
     expect(url.searchParams.get("client_id")).toBeTruthy()
     expect(url.searchParams.get("redirect_uri")).toContain("/login/callback")
 
-    // The regression guard. Before xs-security.json declared
-    // oauth2-configuration.redirect-uris, XSUAA rejected this exact request with
-    // an "Authorization Request Error" page instead of redirecting to a login.
+    // XSUAA accepts the request shape - client_id is known, the app exists, the
+    // OAuth endpoint is reachable. This does NOT prove redirect_uri is
+    // whitelisted; see the note at the top of this file.
     const authRes = await api.get(url.toString(), { maxRedirects: 0 })
     expect(
       [301, 302, 303, 307, 308],
-      `XSUAA did not accept the authorization request (status ${authRes.status()}) - ` +
-        "check oauth2-configuration.redirect-uris in xs-security.json",
+      `XSUAA did not accept the authorization request (status ${authRes.status()})`,
     ).toContain(authRes.status())
   })
 

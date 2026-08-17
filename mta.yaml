@@ -73,6 +73,18 @@ resources:
       service: hana
       service-plan: hdi-shared
 
+  # xs-security.json carries oauth2-configuration.redirect-uris. Without it the
+  # approuter's redirect_uri (https://<router>/login/callback) is not
+  # whitelisted, and login dies after the user has already typed their password
+  # with "OpenID provider cannot process the request due to configuration
+  # issues" - which reads like a broken IdP trust rather than a missing entry
+  # here. XSUAA only validates redirect_uri AFTER authenticating, so an
+  # anonymous request reaching the login page proves nothing about it.
+  #
+  # Note that XSUAA parses that file strictly and rejects unknown keys - a "//"
+  # comment array fails the whole update. Keep xs-security.json free of
+  # comments; explanations go here instead. A rejected update leaves the
+  # instance on its previous config, so run `npm run verify:deploy` afterwards.
   - name: sample-auth
     type: org.cloudfoundry.managed-service
     parameters:

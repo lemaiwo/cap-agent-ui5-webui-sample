@@ -154,9 +154,13 @@ Approve, and leaves it untouched after Reject.
 
 ### Deployed, anonymous
 
-These assert what is checkable without a session, and what actually broke in practice: that
-the approuter emits a valid `/oauth/authorize` request and that **XSUAA accepts it** (see
-below), that the agent returns 401 without a session, and that no ticket data leaks.
+These assert what is checkable without a session: that the approuter emits a well-formed
+`/oauth/authorize` request which XSUAA accepts, that the agent returns 401 without a session,
+and that no ticket data leaks.
+
+They cannot check whether the redirect URI is whitelisted — XSUAA validates that only *after*
+authenticating the user, so an anonymous request gets the same 302 either way. That is why
+the login bug below survived a green anonymous suite.
 
 ```bash
 npm run test:deployed
@@ -201,18 +205,39 @@ Neither deployed suite starts a local CAP server (`PW_TARGET=deployed`, set by
 `scripts/deployed-tests.mjs`) — they talk only to the remote host, and a local server would
 add a minute and a second way for the run to fail.
 
-### The bug those deployed tests guard
+### The login bug, and why it took two rounds
 
 The first deployment failed at login with:
 
 > OpenID provider cannot process the request due to configuration issues.
-> Authorization Request Error — the request for authorization was invalid.
+> Please contact your system administrator.
 
-That reads like an identity-provider problem, and it is not. `xs-security.json` had no
-`oauth2-configuration.redirect-uris`, so XSUAA rejected the `redirect_uri` the approuter
-sends (`https://<router>/login/callback`) as un-whitelisted, and the OAuth flow never
-started. The fix is the `oauth2-configuration` block in `xs-security.json`; the deployed test
-now fails loudly if it regresses.
+That reads like a broken identity-provider trust. It is not — it is a rejected `redirect_uri`.
+`xs-security.json` had no `oauth2-configuration.redirect-uris`, so XSUAA refused the
+`https://<router>/login/callback` the approuter sends.
+
+The fix is the `oauth2-configuration` block. What made it take two attempts is worth copying
+down, because both traps are silent:
+
+1. **XSUAA parses `xs-security.json` strictly and rejects unknown keys.** A `"//"` comment
+   array — the convention CAP tolerates elsewhere — fails the whole update with
+   `Unrecognized field "//"`. The deploy still reports success; the instance quietly keeps
+   its *previous* configuration. Keep that file free of comments, and run
+   `npm run verify:deploy` after every deploy — it reads each instance's `last_operation`
+   and fails loudly when one is stuck in `failed`.
+
+2. **XSUAA validates `redirect_uri` only after authentication.** An anonymous request reaches
+   the login page identically whether the URI is whitelisted or not (verified by sending a
+   deliberately bogus one and getting the same 302). So no anonymous check can confirm this
+   fix, and the failure only ever shows up to a user who has already typed their password.
+
+Between them: a config change that never applied, and a smoke test that could not tell. The
+things that *do* confirm it are `npm run verify:deploy` and `npm run test:deployed:auth`.
+
+If you change `xs-security.json` and apply it outside the MTA, note that `mta.yaml` overrides
+`xsappname` per org and space, so a bare `cf update-service sample-auth -c xs-security.json`
+fails with `Cannot change AppId`. Either redeploy, or merge the deployed `xsappname` into the
+config you pass.
 
 ## Verified
 

@@ -27,7 +27,8 @@
     "test:deployed:auth": "node scripts/deployed-tests.mjs deployed-auth.spec",
     "hybrid": "cds watch --profile hybrid",
     "build": "mbt build",
-    "deploy": "cf deploy mta_archives/cap-agent-ui5-webui-sample_1.0.0.mtar"
+    "deploy": "cf deploy mta_archives/cap-agent-ui5-webui-sample_1.0.0.mtar",
+    "verify:deploy": "node scripts/verify-deploy.mjs"
   },
   "cds": {
     "requires": {
