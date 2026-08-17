@@ -14,9 +14,14 @@ build-parameters:
         - npx cds build --production
 
 modules:
-  # The CAP service. It also serves the chat UI at /chat, because the plugin
-  # mounts its prebuilt assets on the CDS server itself - which is why there is
-  # no HTML5 Application Repository module anywhere in this file.
+  # The CAP service.
+  #
+  # Deployed, it does NOT serve the chat UI: the production profile sets
+  # cap-agent-ui5-webui.serveUi:false, and the UI comes from the HTML5
+  # Application Repository below instead. What the plugin still serves here is
+  # /chat/agents.json, which is generated at runtime from the services carrying
+  # @agent - no static artifact can stand in for it. Locally serveUi stays true,
+  # so `npm run dev` needs none of this.
   - name: sample-srv
     type: nodejs
     path: gen/srv
@@ -44,13 +49,54 @@ modules:
     requires:
       - name: sample-db
 
-  # The approuter exists for LOGIN, not for serving the UI.
+  # The chat UI, packaged for the HTML5 Application Repository.
   #
-  # The plugin serves /chat itself, same-origin from the CAP service, so no
-  # approuter is needed to deliver the assets. But XSUAA-protected endpoints
-  # need an OAuth flow a browser can follow, and CAP's own auth middleware only
-  # rejects with 401 - it cannot redirect a user to log in. That is what this
-  # module provides.
+  # app/chat-ui/dist is GENERATED - `npm run build` regenerates it from the
+  # installed plugin (`cap-agent-ui5-webui html5`), which copies the prebuilt
+  # UI and writes the xs-app.json that routes agents.json back to the CAP
+  # service. It is gitignored; never edit it by hand.
+  #
+  # The module name becomes the artifact name (capagentuichat.zip) referenced
+  # by the content deployer below. supported-platforms: [] keeps it from being
+  # pushed as a Cloud Foundry app - its only output is content for the
+  # repository.
+  # build-result must name the folder holding the built app. Left at its
+  # default (the module path) mbt looks for capagentuichat.zip in app/chat-ui,
+  # finds nothing, copies nothing, and the content module below uploads an
+  # empty archive - which the repository rejects with the very unhelpful
+  # "Could not find applications in the request".
+  - name: capagentuichat
+    type: html5
+    path: app/chat-ui
+    build-parameters:
+      builder: custom
+      commands: []
+      build-result: dist
+      supported-platforms: []
+
+  # Uploads the built app into the app-host instance. This is a one-off task,
+  # not a running app - it stops after it has deployed the content.
+  - name: sample-app-content
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: sample-html5-host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - capagentuichat.zip
+          name: capagentuichat
+          target-path: resources/
+
+  # The approuter: login, and now also delivery of the UI from the repository.
+  #
+  # XSUAA-protected endpoints need an OAuth flow a browser can follow, and CAP's
+  # own auth middleware only rejects with 401 - it cannot redirect a user to log
+  # in. Binding sample-html5-runtime is what additionally lets this approuter
+  # serve app content out of the repository; without it the app path 404s.
   - name: sample-router
     type: approuter.nodejs
     path: app/router
@@ -65,6 +111,7 @@ modules:
           url: ~{srv-url}
           forwardAuthToken: true
       - name: sample-auth
+      - name: sample-html5-runtime
 
 resources:
   - name: sample-db
@@ -93,6 +140,25 @@ resources:
       path: ./xs-security.json
       config:
         xsappname: cap-agent-ui5-webui-sample-${org}-${space}
+
+  # Stores the chat UI's files. app-host is the write side: the content
+  # deployer uploads into it.
+  - name: sample-html5-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+      config:
+        sizeLimit: 5
+
+  # The read side, bound to the approuter so it can serve what the app-host
+  # instance holds. Two instances of one service, deliberately: they are
+  # different halves of the same thing.
+  - name: sample-html5-runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime
 
   # An AI Core instance that already exists in the space - the sample binds to
   # it rather than creating one, so deploying does not provision AI resources.

@@ -9,7 +9,7 @@
     "@cap-js/hana": "^2",
     "@sap/cds": "^10",
     "@sap/xssec": "^4",
-    "cap-agent-ui5-webui": "^0.1.0",
+    "cap-agent-ui5-webui": "^0.2.0",
     "express": "^4"
   },
   "devDependencies": {
@@ -26,11 +26,17 @@
     "test:deployed": "node scripts/deployed-tests.mjs deployed.spec",
     "test:deployed:auth": "node scripts/deployed-tests.mjs deployed-auth.spec",
     "hybrid": "cds watch --profile hybrid",
-    "build": "mbt build",
+    "build:ui": "cap-agent-ui5-webui html5 app/chat-ui/dist",
+    "build": "npm run build:ui && mbt build",
     "deploy": "cf deploy mta_archives/cap-agent-ui5-webui-sample_1.0.0.mtar",
     "verify:deploy": "node scripts/verify-deploy.mjs"
   },
   "cds": {
+    "[production]": {
+      "cap-agent-ui5-webui": {
+        "serveUi": false
+      }
+    },
     "requires": {
       "[development]": {
         "db": {

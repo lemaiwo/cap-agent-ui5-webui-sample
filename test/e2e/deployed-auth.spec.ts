@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { STORAGE_STATE, hasSavedSession, resolveDeployedUrl } from "./deployed-target"
+import { CHAT_PATH, STORAGE_STATE, hasSavedSession, resolveDeployedUrl } from "./deployed-target"
 
 /**
  * Authenticated tests against a DEPLOYED instance.
@@ -34,7 +34,7 @@ test.describe("deployed (authenticated)", () => {
   test.setTimeout(240_000)
 
   test("the chat UI loads for a logged-in user", async ({ page }) => {
-    await page.goto("/chat/index.html")
+    await page.goto(CHAT_PATH)
 
     // Both of these are absent on a login page, so this fails loudly rather
     // than vacuously if the saved session has expired.
@@ -49,7 +49,7 @@ test.describe("deployed (authenticated)", () => {
     expect(res.ok(), `OData lookup failed with ${res.status()} - session expired?`).toBeTruthy()
     const first = ((await res.json()) as { value: { title: string }[] }).value[0]
 
-    await page.goto("/chat/index.html")
+    await page.goto(CHAT_PATH)
     const input = page.getByPlaceholder("Ask the agent")
     await input.fill("List every ticket with its status.")
     await page.getByRole("button", { name: "Send" }).click()
@@ -69,7 +69,7 @@ test.describe("deployed (authenticated)", () => {
     expect(res.ok()).toBeTruthy()
     const before = ((await res.json()) as { value: { ID: number; priority: string }[] }).value[0]
 
-    await page.goto("/chat/index.html")
+    await page.goto(CHAT_PATH)
     const input = page.getByPlaceholder("Ask the agent")
     await input.fill(`Escalate ticket ${before.ID}.`)
     await page.getByRole("button", { name: "Send" }).click()

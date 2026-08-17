@@ -14,12 +14,18 @@ behind human approval. Swap it for your own; nothing about the plugin changes.
 npm add cap-agent-ui5-webui
 ```
 
+> **Note:** the HTML5 Application Repository mode below needs plugin **0.2.0**. Until that
+> version is on npm, `npm install` in this repo will not resolve — pin `^0.1.0` and drop the
+> `serveUi` setting to run everything else.
+
 That is the whole integration. CAP auto-loads it via the `cds-plugin.js` convention, and it
 serves a SAPUI5 chat client at **`/chat/index.html`**, same-origin from your CDS server,
-talking to whichever of your services carry `@agent`.
+talking to whichever of your services carry `@agent`. No UI build step, no HTML5 Application
+Repository — the plugin ships its own prebuilt assets.
 
-There is no HTML5 Application Repository module and no UI build step in this project — the
-plugin ships its own prebuilt assets.
+Deployed, this sample does use the repository — see
+[HTML5 Application Repository](#html5-application-repository) for what that buys and what it
+costs. It is optional; the plugin serves the UI itself by default.
 
 ## The service
 
@@ -104,27 +110,35 @@ npm run build      # mbt build
 npm run deploy     # cf deploy mta_archives/...mtar
 ```
 
-`mta.yaml` deploys three modules:
+`npm run build` first regenerates `app/chat-ui/dist` from the installed plugin, then runs
+`mbt build`. Always run `npm run verify:deploy` afterwards — see
+[the login bug](#the-login-bug-and-why-it-took-two-rounds) for why a green deploy is not
+proof.
+
+`mta.yaml` deploys five modules:
 
 | Module | What it is |
 |---|---|
-| `sample-srv` | the CAP service — **and the chat UI**, served by the plugin |
+| `sample-srv` | the CAP service, and `/chat/agents.json` — but **not** the UI |
 | `sample-db-deployer` | deploys the CDS model into a HANA HDI container |
-| `sample-router` | the approuter |
+| `capagentuichat` | the chat UI, packaged for the HTML5 Application Repository |
+| `sample-app-content` | uploads that package into the repository |
+| `sample-router` | the approuter — login, and serving the UI from the repository |
 
-and binds four resources: a HANA HDI container, an XSUAA instance, and an **existing** AI Core
-instance (named `aicore` — change it in `mta.yaml` if yours differs). Deploying does not
-provision AI resources.
+and binds a HANA HDI container, an XSUAA instance, two `html5-apps-repo` instances
+(`app-host` to hold the content, `app-runtime` bound to the router to serve it), and an
+**existing** AI Core instance (named `aicore` — change it in `mta.yaml` if yours differs).
+Deploying does not provision AI resources.
 
-### Why there is an approuter but no HTML5 repo
+Open the **router** URL, not the srv URL, at **`/capagentuichat/index.html`** (the app id
+from the UI's manifest with the dots removed). `/` redirects there. Assign the
+`CapAgentSampleSupportUser` role collection to yourself in the BTP cockpit first.
 
-The approuter is here for **login, not for serving the UI**. The plugin serves `/chat` itself
-from the CAP service, so no HTML5 Application Repository module is needed. But XSUAA-protected
-endpoints need an OAuth flow a browser can follow, and CAP's own auth middleware can only
-reject with 401 — it cannot redirect a user to log in. That is the approuter's job here.
+### Why the approuter
 
-Open the **router** URL, not the srv URL. Assign the `CapAgentSampleSupportUser` role
-collection to yourself in the BTP cockpit first.
+XSUAA-protected endpoints need an OAuth flow a browser can follow, and CAP's own auth
+middleware can only reject with 401 — it cannot redirect a user to log in. Binding the
+`app-runtime` instance additionally lets it serve the UI out of the repository.
 
 ### What is and is not protected
 
@@ -132,9 +146,61 @@ Verified on the running deployment:
 
 - unauthenticated `POST /a2a/support` → **401**
 - unauthenticated `GET /odata/...` via the router → the approuter's login page, **no data**
-- the chat UI shell and `/chat/agents.json` on the **srv** URL are readable without a session:
-  the plugin's static assets are mounted ahead of CAP's auth middleware. The agent itself is
-  not. If that matters to you, do not expose the srv route publicly.
+- `/chat/agents.json` on the **srv** URL is readable without a session — the plugin mounts it
+  ahead of CAP's auth middleware. It enumerates your agents' names and paths; the agent
+  itself is not reachable. If that matters, do not expose the srv route publicly.
+
+## HTML5 Application Repository
+
+The plugin serves the chat UI itself by default, and for most projects that is the right
+answer: the UI is ~20 KB, SAPUI5 comes from the CDN, and there is nothing to build. This
+sample uses the repository anyway, because that is the setup people ask about — it is what
+**SAP Build Work Zone** requires, and it keeps the UI off the srv route entirely.
+
+Two settings switch it on. `npm run build:ui` generates the deployable artifact:
+
+```bash
+npx cap-agent-ui5-webui html5 app/chat-ui/dist
+```
+
+and the production profile stops the CDS server serving the UI as well:
+
+```jsonc
+{ "cds": { "[production]": { "cap-agent-ui5-webui": { "serveUi": false } } } }
+```
+
+Scoped to `[production]`, so `npm run dev` is untouched — locally there is no repository, and
+the UI is still at <http://localhost:4004/chat/index.html>.
+
+**`/chat/agents.json` stays on the CAP service either way.** It is generated at runtime from
+the services carrying `@agent`, so the repository — which stores static files — cannot produce
+it. The UI fetches it relative to its own page, which deployed means
+`/capagentuichat/agents.json`, so that one path is routed back to `srv-api` in both
+`app/router/xs-app.json` and the generated `app/chat-ui/dist/xs-app.json`.
+
+### Three ways this fails silently
+
+All three cost a deploy cycle here:
+
+1. **`build-result` on the `html5` module must name the folder holding the archive.** Left at
+   its default, mbt looks in the module root, finds no zip, copies nothing, and the repository
+   rejects the upload with *"Could not find applications in the request"*.
+
+2. **mbt only copies an archive — it never creates one.** Fiori projects get theirs from
+   `ui5-task-zipper`; this project has no `ui5 build`, so `cap-agent-ui5-webui html5` writes
+   the `.zip` itself.
+
+3. **The service name is `html5-apps-repo-rt`, not `html5-apps-repo`.** The shorter name
+   appears in most examples and works under the *managed* approuter, which skips validation. A
+   standalone approuter validates its own `xs-app.json` at boot and the app's fetched
+   `xs-app.json` on every request, and answers
+
+   ```
+   A route requires access to html5-apps-repo service but the service is not bound.
+   ```
+
+   as a crash loop or a request-time 500 — while `cf services` shows the binding present and
+   healthy.
 
 ---
 
@@ -248,6 +314,9 @@ Everything above was run, not assumed:
 - **hybrid** — real model, quoted above
 - **deployed** — HANA returned the 3 seeded tickets, and the deployed agent answered from that
   data through AI Core
+- **deployed via the HTML5 Application Repository** — the content upload is validated by the
+  repository (an empty archive is rejected outright), and the approuter fetched the app's own
+  `xs-app.json` back out of it, which is how the wrong service name surfaced
 
 ## Layout
 
@@ -259,6 +328,8 @@ srv/support-service.js     the escalate handler, and the scripted-LLM opt-in
 srv/support-agent/         markdown agent: AGENTS.md + skills/ticket-triage/SKILL.md
 scripts/agent-script.mjs   intents for the scripted stand-in
 scripts/deployed-login.mjs interactive login, saves the session to .auth/
+scripts/verify-deploy.mjs  post-deploy check that no service update silently failed
 mta.yaml, xs-security.json deployment
-app/router/                approuter (login only)
+app/router/                approuter: login, and serving the UI from the repository
+app/chat-ui/               GENERATED by `npm run build:ui` — gitignored
 ```

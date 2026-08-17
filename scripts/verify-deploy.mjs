@@ -17,7 +17,7 @@
 
 import { execFileSync } from "node:child_process"
 
-const INSTANCES = ["sample-auth", "sample-db"]
+const INSTANCES = ["sample-auth", "sample-db", "sample-html5-host", "sample-html5-runtime"]
 
 let failed = false
 

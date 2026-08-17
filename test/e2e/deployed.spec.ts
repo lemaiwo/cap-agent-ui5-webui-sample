@@ -1,5 +1,5 @@
 import { test, expect, request as playwrightRequest } from "@playwright/test"
-import { resolveDeployedUrl } from "./deployed-target"
+import { CHAT_PATH, resolveDeployedUrl } from "./deployed-target"
 
 /**
  * Smoke tests for a DEPLOYED instance, run against the approuter URL.
@@ -46,8 +46,19 @@ test.describe("deployed", () => {
   })
 
   test("an anonymous browser request starts a valid OAuth flow", async () => {
-    const res = await api.get("/chat/index.html")
-    expect(res.ok()).toBeTruthy()
+    const res = await api.get(CHAT_PATH)
+
+    // A 500 here is the HTML5 Application Repository wiring, not authentication:
+    // the approuter fetches the app's own xs-app.json out of the repository and
+    // validates it on every request, so a wrong service name in it (the classic
+    // is "html5-apps-repo" instead of "html5-apps-repo-rt") fails here while
+    // `cf services` shows the binding perfectly healthy. A 404 means the app
+    // never reached the repository - check `cf deploy` actually uploaded content
+    // rather than an empty archive.
+    expect(
+      res.ok(),
+      `GET ${CHAT_PATH} returned ${res.status()} - see "Three ways this fails silently" in the README`,
+    ).toBeTruthy()
 
     // The approuter answers a browser navigation with a small HTML shell that
     // redirects to XSUAA client-side, preserving the URL fragment.

@@ -1,7 +1,20 @@
 {
-  "welcomeFile": "/chat/index.html",
+  "welcomeFile": "/capagentuichat/index.html",
   "authenticationMethod": "route",
   "routes": [
+    {
+      "source": "^/capagentuichat/agents\\.json$",
+      "target": "/chat/agents.json",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/capagentuichat/(.*)$",
+      "target": "$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
     {
       "source": "^/(.*)$",
       "target": "/$1",

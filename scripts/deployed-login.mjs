@@ -34,7 +34,10 @@ if (!url) {
   process.exit(1)
 }
 
-const target = `${url}/chat/index.html`
+// Kept in step with CHAT_PATH in test/e2e/deployed-target.ts. Deployed, the UI
+// comes from the HTML5 Application Repository and the approuter serves it under
+// the app id without dots, not under /chat.
+const target = `${url}/capagentuichat/index.html`
 
 console.log("\n[login] opening a browser window - log in there, with your own identity provider.")
 console.log("[login] your credentials are not read, forwarded or stored by this script.")
