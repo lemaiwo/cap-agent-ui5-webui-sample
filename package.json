@@ -14,12 +14,15 @@
   },
   "devDependencies": {
     "@cap-js/sqlite": "^3",
-    "@langchain/core": "^1"
+    "@langchain/core": "^1",
+    "@playwright/test": "^1.62.1"
   },
   "scripts": {
     "start": "cds-serve",
     "dev": "cds-serve --in-memory",
     "dev:scripted": "node scripts/dev-scripted.mjs",
+    "test": "playwright test chat",
+    "test:deployed": "playwright test deployed",
     "hybrid": "cds watch --profile hybrid",
     "build": "mbt build",
     "deploy": "cf deploy mta_archives/cap-agent-ui5-webui-sample_1.0.0.mtar"

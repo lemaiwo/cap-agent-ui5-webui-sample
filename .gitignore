@@ -11,3 +11,5 @@ default-env.json
 # MTA build output
 mta_archives/
 .mta/
+test-results/
+playwright-report/

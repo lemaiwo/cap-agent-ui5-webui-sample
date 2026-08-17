@@ -138,6 +138,42 @@ Verified on the running deployment:
 
 ---
 
+## Tests
+
+```bash
+npm test                # Playwright against the local sample (scripted stand-in LLM)
+npm run test:deployed   # smoke tests against a deployment
+```
+
+The **local** tests never assert on the agent's wording. They assert that the reply contains a
+ticket title fetched independently from OData — which the agent could only know by calling a
+tool — and that escalating pauses with the ticket **unchanged**, changes it only after
+Approve, and leaves it untouched after Reject.
+
+The **deployed** tests deliberately do not log in; automating a corporate IdP is brittle and
+needs real credentials. They assert what is checkable anonymously, and what actually broke in
+practice: that the approuter emits a valid `/oauth/authorize` request and that **XSUAA accepts
+it** (see below), that the agent returns 401 without a session, and that no ticket data leaks.
+
+```bash
+SAMPLE_DEPLOYED_URL=https://<router>.cfapps.<region>.hana.ondemand.com npm run test:deployed
+```
+
+They skip cleanly when that variable is unset.
+
+### The bug those deployed tests guard
+
+The first deployment failed at login with:
+
+> OpenID provider cannot process the request due to configuration issues.
+> Authorization Request Error — the request for authorization was invalid.
+
+That reads like an identity-provider problem, and it is not. `xs-security.json` had no
+`oauth2-configuration.redirect-uris`, so XSUAA rejected the `redirect_uri` the approuter
+sends (`https://<router>/login/callback`) as un-whitelisted, and the OAuth flow never
+started. The fix is the `oauth2-configuration` block in `xs-security.json`; the deployed test
+now fails loudly if it regresses.
+
 ## Verified
 
 Everything above was run, not assumed:

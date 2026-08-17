@@ -2,6 +2,22 @@
   "xsappname": "cap-agent-ui5-webui-sample",
   "tenant-mode": "dedicated",
   "description": "Security profile for the cap-agent-ui5-webui sample",
+
+  "//": [
+    "Without this, XSUAA rejects the approuter's login with 'the request for",
+    "authorization was invalid' - the redirect_uri it sends",
+    "(https://<router>/login/callback) is not whitelisted, so the OAuth flow",
+    "never starts. The failure looks like an IdP misconfiguration rather than a",
+    "missing entry here, which makes it easy to chase the wrong thing.",
+    "Narrow the wildcard to your own route if you prefer."
+  ],
+  "oauth2-configuration": {
+    "redirect-uris": [
+      "https://*.cfapps.eu20-001.hana.ondemand.com/**",
+      "http://localhost:5000/**"
+    ]
+  },
+
   "scopes": [
     {
       "name": "$XSAPPNAME.support",
