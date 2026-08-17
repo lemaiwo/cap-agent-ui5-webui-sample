@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from "@playwright/test"
+import { resolveDeployedUrl } from "./deployed-target"
 
 /**
  * Smoke tests for a DEPLOYED instance, run against the approuter URL.
@@ -18,12 +19,12 @@ import { test, expect, request as playwrightRequest } from "@playwright/test"
  *   SAMPLE_DEPLOYED_URL=https://<router>.cfapps.<region>.hana.ondemand.com npx playwright test deployed
  */
 
-const DEPLOYED = process.env.SAMPLE_DEPLOYED_URL
+const DEPLOYED = resolveDeployedUrl()
 
 test.describe("deployed", () => {
   test.skip(
     !DEPLOYED,
-    "set SAMPLE_DEPLOYED_URL to the approuter URL to run the deployed smoke tests",
+    "no deployment URL - set SAMPLE_DEPLOYED_URL, or run `npm run login -- <url>` once",
   )
 
   // These talk to a remote host, so they must not inherit the local baseURL.

@@ -21,8 +21,10 @@
     "start": "cds-serve",
     "dev": "cds-serve --in-memory",
     "dev:scripted": "node scripts/dev-scripted.mjs",
-    "test": "playwright test chat",
-    "test:deployed": "playwright test deployed",
+    "test": "playwright test chat.spec",
+    "login": "node scripts/deployed-login.mjs",
+    "test:deployed": "node scripts/deployed-tests.mjs deployed.spec",
+    "test:deployed:auth": "node scripts/deployed-tests.mjs deployed-auth.spec",
     "hybrid": "cds watch --profile hybrid",
     "build": "mbt build",
     "deploy": "cf deploy mta_archives/cap-agent-ui5-webui-sample_1.0.0.mtar"

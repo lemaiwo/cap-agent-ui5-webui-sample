@@ -13,3 +13,7 @@ mta_archives/
 .mta/
 test-results/
 playwright-report/
+
+# Saved browser session from `npm run login`. Contains live auth cookies for a
+# deployed app - as sensitive as a token. Never commit.
+.auth/
