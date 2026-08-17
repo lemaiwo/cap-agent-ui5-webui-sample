@@ -24,3 +24,6 @@ app/chat-ui/
 
 # mbt staging folder for html5 content
 resources/
+
+# mbt leaves these behind when a build is interrupted
+Makefile_*.mta
