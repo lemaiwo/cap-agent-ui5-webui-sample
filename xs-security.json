@@ -1,0 +1,25 @@
+{
+  "xsappname": "cap-agent-ui5-webui-sample",
+  "tenant-mode": "dedicated",
+  "description": "Security profile for the cap-agent-ui5-webui sample",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.support",
+      "description": "Use the support agent"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "SupportUser",
+      "description": "Can chat with the support agent",
+      "scope-references": ["$XSAPPNAME.support"]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "CapAgentSampleSupportUser",
+      "description": "cap-agent-ui5-webui sample - support user",
+      "role-template-references": ["$XSAPPNAME.SupportUser"]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+ID,title,description,status,priority,customer_ID,createdAt
+1,Barrier sensor offline,Level crossing barrier reports no signal since the night shift.,open,normal,1,2026-08-10T07:15:00Z
+2,Timetable import fails,Nightly timetable import aborts halfway with a parsing error.,open,normal,2,2026-08-11T22:40:00Z
+3,Login loop on mobile,Field engineers get redirected to login repeatedly on the mobile app.,open,low,3,2026-08-12T09:05:00Z

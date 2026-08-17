@@ -1,0 +1,11 @@
+{
+  "name": "cap-agent-ui5-webui-sample-router",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@sap/approuter": "^20"
+  },
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  }
+}

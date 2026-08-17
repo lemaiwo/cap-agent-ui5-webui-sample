@@ -1,0 +1,13 @@
+node_modules/
+gen/
+*.log
+
+# Credentials written by `cds bind` and CAP tooling. These hold live service
+# keys for real BTP instances - never commit them.
+.cdsrc-private.json
+default-env.json
+*.pem
+
+# MTA build output
+mta_archives/
+.mta/
